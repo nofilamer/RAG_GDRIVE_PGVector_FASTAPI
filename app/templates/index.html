@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #e9ecef;
+            flex: 1;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .response-box {
+            background-color: #e9f7ef;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .thought-process {
+            background-color: #f9f9f9;
+            border-left: 4px solid #7f8c8d;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .tabs {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab-button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .tab-button:hover {
+            background-color: #ddd;
+        }
+
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Google Drive Document Processor</h1>
+    
+    {% if message %}
+    <div class="alert {% if success %}alert-success{% else %}alert-danger{% endif %}">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <div class="tabs">
+        <button class="tab-button active" onclick="openTab(event, 'process-tab')">Process File</button>
+        <button class="tab-button" onclick="openTab(event, 'query-tab')">Ask Questions</button>
+    </div>
+
+    <div id="process-tab" class="tab-content" style="display: block;">
+        <div class="card">
+            <h2>Process a File from Google Drive</h2>
+            <form action="/process" method="post">
+                <div>
+                    <label for="file_name">File Name:</label>
+                    <input type="text" id="file_name" name="file_name" required placeholder="Enter the name of the file in your Google Drive">
+                </div>
+                <button type="submit">Process File</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="query-tab" class="tab-content">
+        <div class="card">
+            <h2>Ask a Question About Your Documents</h2>
+            <form action="/query" method="post">
+                <div>
+                    <label for="query">Your Question:</label>
+                    <textarea id="query" name="query" rows="4" required placeholder="Ask a question about the content in your processed documents"></textarea>
+                </div>
+                <button type="submit">Submit Question</button>
+            </form>
+        </div>
+
+        {% if answer %}
+        <div class="response-box">
+            <h3>Answer</h3>
+            <p>{{ answer }}</p>
+            
+            <h4>Context Status: {{ context_status }}</h4>
+            
+            <div class="thought-process">
+                <h4>Thought Process</h4>
+                <ul>
+                    {% for thought in thoughts %}
+                    <li>{{ thought }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function openTab(evt, tabName) {
+            var i, tabContent, tabButtons;
+            
+            // Hide all tab content
+            tabContent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabContent.length; i++) {
+                tabContent[i].style.display = "none";
+            }
+            
+            // Remove "active" class from all tab buttons
+            tabButtons = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].className = tabButtons[i].className.replace(" active", "");
+            }
+            
+            // Show the current tab and add "active" class to the button that opened the tab
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // Check if we need to show the query tab based on response
+        {% if answer or query %}
+            document.querySelector('.tab-button[onclick="openTab(event, \'process-tab\')"]').classList.remove('active');
+            document.querySelector('.tab-button[onclick="openTab(event, \'query-tab\')"]').classList.add('active');
+            document.getElementById('process-tab').style.display = "none";
+            document.getElementById('query-tab').style.display = "block";
+        {% endif %}
+    </script>
+</body>
+</html>

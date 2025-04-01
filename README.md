@@ -1,9 +1,20 @@
-# Building a High-Performance RAG Solution with Pgvectorscale and Python
+# Google Drive Document RAG with PostgreSQL Vector Search
 
-This tutorial will guide you through setting up and using `pgvectorscale` with Docker and Python, leveraging OpenAI's powerful `text-embedding-3-small` model for embeddings. You'll learn to build a cutting-edge RAG (Retrieval-Augmented Generation) solution, combining advanced retrieval techniques (including hybrid search) with intelligent answer generation based on the retrieved context. Perfect for AI engineers looking to enhance their projects with state-of-the-art vector search and generation capabilities with the power of PostgreSQL.
+This application allows you to search and query your Google Drive documents using Retrieval-Augmented Generation (RAG). It downloads documents from your Google Drive, creates embeddings, and stores them in a PostgreSQL database using Timescale's vector search capabilities. You can then ask questions about your documents and receive AI-generated answers based on their content.
 
-## YouTube Tutorial
-You can watch the full tutorial here on [YouTube](https://youtu.be/hAdEuDBN57g).
+## Features
+
+- Connect to Google Drive API to access your documents
+- Search for documents by name in your Google Drive
+- Download and process documents (supports Google Docs, Google Sheets, Word documents, text files)
+- Extract text content from various file formats including PDFs and DOCX files
+- Generate embeddings using OpenAI's `text-embedding-3-small` model
+- Store embeddings in PostgreSQL for efficient vector search
+- Web interface with FastAPI for easy document processing and querying
+- REST API endpoints for integrating with other applications
+- Interactive command-line interface for document processing and querying
+- AI-powered question answering based on your document content
+- Detailed thought process and context sufficiency information with query results
 
 ## Pgvectorscale Documentation
 
@@ -47,6 +58,8 @@ Pgvectorscale Vector builds on top of [pgvector](https://github.com/pgvector/pgv
 Create a `docker-compose.yml` file with the following content:
 
 ```yaml
+name: googledrive-embeddings
+
 services:
   timescaledb:
     image: timescale/timescaledb-ha:pg16
@@ -55,20 +68,49 @@ services:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD=password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - app-network
+
+  webapi:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: googledrive-api
+    environment:
+      - TIMESCALE_SERVICE_URL=postgres://postgres:password@timescaledb:5432/postgres
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../:/app
+      - ../token.json:/app/token.json
+      - ../client_secret_1054911966299-ntoekdnpbnl07lr76fjsnkjh0c288r72.apps.googleusercontent.com.json:/app/client_secret_1054911966299-ntoekdnpbnl07lr76fjsnkjh0c288r72.apps.googleusercontent.com.json
+    ports:
+      - "8000:8000"
+    depends_on:
+      - timescaledb
+    restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   timescaledb_data:
+
+networks:
+  app-network:
+    driver: bridge
 ```
 
 Run the Docker container:
 
 ```bash
-docker compose up -d
+cd docker
+docker-compose up -d
 ```
+
+This will start both the database and the web API on http://localhost:8000
 
 ### 2. Connect to the database using a PostgreSQL GUI client
 
@@ -90,12 +132,61 @@ See `similarity_search.py` for the implementation. This script also uses OpenAI'
 
 ## Usage
 
-1. Create a copy of `example.env` and rename it to `.env`
-2. Open `.env` and fill in your OpenAI API key. Leave the database settings as is
-3. Run the Docker container
-4. Install the required Python packages using `pip install -r requirements.txt`
-5. Execute `insert_vectors.py` to populate the database
-6. Play with `similarity_search.py` to perform similarity searches
+1. Create a `.env` file in the `app` directory with the following content:
+   ```
+   OPENAI_API_KEY=your_openai_api_key
+   TIMESCALE_SERVICE_URL=postgres://postgres:password@localhost:5433/postgres
+   ```
+
+2. Run the Docker container:
+   ```bash
+   cd docker
+   docker-compose up -d
+   ```
+
+3. Install the required Python packages:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Run the application in one of two ways:
+
+   a. Using the web interface (recommended):
+   ```bash
+   cd app
+   python main.py
+   ```
+   Then open http://localhost:8000 in your browser
+   
+   b. Using the command-line interface:
+   ```bash
+   cd app
+   python google_drive_processor.py
+   ```
+
+5. With the web interface:
+   - Navigate to the "Process File" tab to process files from Google Drive
+   - Navigate to the "Ask Questions" tab to query your documents
+   - You'll be prompted to authenticate via OAuth during first use
+   
+   Or follow the interactive command-line prompts to:
+   - Process a file from your Google Drive
+   - Ask questions about your documents
+   
+6. API Endpoints (for developers):
+   - `POST /api/process`: Process a file from Google Drive
+     ```json
+     {
+       "file_name": "Your Document Name"
+     }
+     ```
+   - `POST /api/query`: Ask a question about your documents
+     ```json
+     {
+       "query": "Your question here?",
+       "limit": 5
+     }
+     ```
 
 ## Using ANN search indexes to speed up queries
 

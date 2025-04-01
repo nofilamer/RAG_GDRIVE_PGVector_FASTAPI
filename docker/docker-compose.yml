@@ -1,4 +1,4 @@
-name: timescaledb
+name: googledrive-embeddings
 
 services:
   timescaledb:
@@ -8,10 +8,36 @@ services:
       - POSTGRES_DB=postgres
       - POSTGRES_PASSWORD=password
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - timescaledb_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - app-network
+
+  webapi:
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+    container_name: googledrive-api
+    environment:
+      - TIMESCALE_SERVICE_URL=postgres://postgres:password@timescaledb:5432/postgres
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - ../:/app
+      - ../token.json:/app/token.json
+      - ../client_secret_1054911966299-ntoekdnpbnl07lr76fjsnkjh0c288r72.apps.googleusercontent.com.json:/app/client_secret_1054911966299-ntoekdnpbnl07lr76fjsnkjh0c288r72.apps.googleusercontent.com.json
+    ports:
+      - "8000:8000"
+    depends_on:
+      - timescaledb
+    restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   timescaledb_data:
+
+networks:
+  app-network:
+    driver: bridge

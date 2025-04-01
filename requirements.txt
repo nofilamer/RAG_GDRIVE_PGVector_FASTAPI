@@ -5,3 +5,11 @@ python-dotenv
 timescale-vector
 instructor
 anthropic
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+python-docx
+fastapi
+uvicorn
+python-multipart
+jinja2
